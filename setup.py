@@ -1,16 +1,19 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r") as readme:
+    long_description = readme.read()
 
 setup(
     name= "pymigratedb",
     packages=find_packages(),
-    version="1.0.0",
+    version="1.0.1",
     license="Apache License",
     description="This is a package to help you to migrate your database. It will be useful when you work on frameworks or programming languages that don't have a built-in tool to do it or it's little hard to setup.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author="Indico Innovation",
-    author_email="suporte@indico.net.br",
-    url="https://github.com/INDICO-INNOVATION/pymigratedb",
-    download_url="https://github.com/INDICO-INNOVATION/pymigratedb/archive/v_01.tar.gz",
+    author_email="dev@indicoinnovation.pt",
+    url="https://github.com/INDICO-INNOVATION/py-migrate-db",
     keywords=["migrate", "migration", "database", "db"],
     install_requires=[
         'greenlet==1.1.2',
@@ -23,6 +26,7 @@ setup(
             'migrate = src.migrate:main'
         ]
     },
+    python_requires=">=3.6",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
