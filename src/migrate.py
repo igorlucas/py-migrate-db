@@ -104,16 +104,16 @@ def main():
     parser = argparse.ArgumentParser(description='Migrate and rollback database scripts')
     parser.add_argument('command', help="command to execute inside dbms")
     parser.add_argument('--driver', help="SQL Driver to use")
-    parser.add_argument('--dbstring', help="Add dbstring to connection if you didn't set DATABASE_URL environment var")
+    parser.add_argument('--dbstring', help="Add dbstring to connection if you didn't set DATABASE_MIGRATION_URL environment var")
     args = parser.parse_args()
 
     load_dotenv()
 
-    if not args.dbstring and 'DATABASE_URL' not in os.environ:
-        logging.error('dbstring is missing, you have to provide it as DATABASE_URL environment variable, or via --dbstring positional argument of command')
+    if not args.dbstring and 'DATABASE_MIGRATION_URL' not in os.environ:
+        logging.error('dbstring is missing, you have to provide it as DATABASE_MIGRATION_URL environment variable, or via --dbstring positional argument of command')
         return
 
     Migrate(
         command=args.command,
-        database_url=f"postgresql+psycopg2://{os.getenv('DATABASE_URL') if 'DATABASE_URL' in os.environ else args.dbstring}"
+        database_url=f"postgresql+psycopg2://{os.getenv('DATABASE_MIGRATION_URL') if 'DATABASE_MIGRATION_URL' in os.environ else args.dbstring}"
     )
