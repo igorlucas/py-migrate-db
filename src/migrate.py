@@ -3,6 +3,7 @@ import os
 import logging
 import sys
 
+from datetime import datetime
 from glob import glob
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
@@ -22,12 +23,15 @@ class Migrate:
 
         if self.command == 'execute':
             self.execute_migration()
+        
         if self.command == 'rollback':
             if migration_name == None:
                 logging.error('missing rollback arg')
                 return
-            
             self.rollback_migration()
+        
+        if self.command == 'create':
+            self.create_migration()
 
     def init_migration_table(self):
         logging.info("EXECUTING MIGRATION INITIALIZER")
@@ -100,6 +104,14 @@ class Migrate:
             )
         logging.info("ROLLBACK EXECUTED SUCCESSFULLY")
         exit(0)
+
+    def create_migration(self):
+        if not os.path.exists(self.base_folder):
+            os.makedirs(self.base_folder)
+
+        file_name = f'{self.base_folder}/{datetime.now().strftime("%Y%m%d%H%M%S")}_{self.migration_name}.sql'
+        with open(file_name, "w") as f:
+            f.write("""-- Paste your migrations here to apply inside database\n\n=====DOWN\n\n-- Paste your rollback queries to rollback database modifications""")
 
 def main():
     parser = argparse.ArgumentParser(description='Migrate and rollback database scripts')
