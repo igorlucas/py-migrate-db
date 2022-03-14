@@ -1,4 +1,5 @@
 import argparse
+from asyncio import constants
 import os
 import logging
 import sys
@@ -7,44 +8,47 @@ from datetime import datetime
 from glob import glob
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
+import src.constants as constants
 
 logging.basicConfig(level=logging.DEBUG)
 
 class Migrate:
-    def __init__(self, command, database_url, migration_name=None):
+    def __init__(self, command, database_url, migration_name=None, driver=None):
+        # Command variables
         self.command = command
+        self.migration_name = migration_name
+        self.driver = driver
+
         self.base_folder = 'migrations'
         self.files = [file.split("/")[-1] for file in glob(f"./{self.base_folder}/*")]
         self.files.sort()
-        self.sql_engine=create_engine(database_url)
-        self.migration_name = migration_name
+        
+        database = getattr(constants, f"{self.driver}_protocol")
+        self.sql_engine=create_engine(f"{database}{database_url}")
 
-        self.init_migration_table()
+        if self.command not in ['create']:
+            self.init_migration_table()
 
         if self.command == 'execute':
             self.execute_migration()
         
         if self.command == 'rollback':
-            if migration_name == None:
-                logging.error('missing rollback arg')
-                return
+            if migration_name is None:
+                logging.error('you should provide the migration name to rollback database changes')
+                sys.exit(0)
             self.rollback_migration()
-        
+
         if self.command == 'create':
+            if migration_name is None:
+                logging.error('you should provide the migration name to create file')
+                sys.exit(0)
             self.create_migration()
 
     def init_migration_table(self):
         logging.info("EXECUTING MIGRATION INITIALIZER")
         with self.sql_engine.connect() as conn:
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS migrations (
-                    id serial NOT NULL,
-                    "name" varchar NOT NULL,
-                    app varchar NOT NULL,
-                    applied_at timestamptz(0) NOT NULL DEFAULT now(),
-                    CONSTRAINT migrations_pk PRIMARY KEY (id)
-                )
-            """))
+            conn.execute(text(getattr(constants, self.driver)))
+            
         logging.info("MIGRATION INITIALIZED SUCCESSFULLY")
 
     def execute_migration(self):
@@ -54,12 +58,14 @@ class Migrate:
                 SELECT name FROM migrations
             """))
 
-        migrated = [item[0] for item in migrated.fetchall()]
+            migrated = migrated.fetchall()
+
+        migrated = [item[0] for item in migrated]
         to_migrate = [item for item in self.files if item not in migrated]
 
         if len(to_migrate) == 0:
             logging.info("NO MIGRATIONS TO BE EXECUTED")
-            exit(0)
+            sys.exit(0)
 
         with self.sql_engine.connect() as conn:
             for file in to_migrate:
@@ -73,7 +79,7 @@ class Migrate:
                     logging.info(f"APPLYING -> {f.name}")
                     conn.execute(up)
                     conn.execute(text("""
-                        INSERT INTO public.migrations
+                        INSERT INTO migrations
                         (name, app)
                         VALUES (:name, :app)
                     """),
@@ -95,7 +101,7 @@ class Migrate:
             logging.info(f"ROLLING BACK -> {f.name}")
             conn.execute(down)
             conn.execute(text("""
-                INSERT INTO public.migrations
+                INSERT INTO migrations
                 (name, app)
                 VALUES (:name, :app)
             """),
@@ -116,8 +122,8 @@ class Migrate:
 def main():
     parser = argparse.ArgumentParser(description='Migrate and rollback database scripts')
     parser.add_argument('command', help="command to execute inside dbms")
-    parser.add_argument('--driver', help="SQL Driver to use")
-    parser.add_argument('--dbstring', help="Add dbstring to connection if you didn't set DATABASE_MIGRATION_URL environment var")
+    parser.add_argument('--driver', help="SQL Driver to use: sqlite, pgsql")
+    parser.add_argument('--dbstring', help="Add dbstring without protocol to connection if you didn't set DATABASE_MIGRATION_URL environment var")
     parser.add_argument('--migration_name', help="Inform migration name to create or rollback sql migration file")
     args = parser.parse_args()
 
@@ -129,6 +135,7 @@ def main():
 
     Migrate(
         command=args.command,
-        database_url=f"postgresql+psycopg2://{os.getenv('DATABASE_MIGRATION_URL') if 'DATABASE_MIGRATION_URL' in os.environ else args.dbstring}",
-        migration_name=args.migration_name
+        database_url=f"{os.getenv('DATABASE_MIGRATION_URL') if 'DATABASE_MIGRATION_URL' in os.environ else args.dbstring}",
+        migration_name=args.migration_name,
+        driver=args.driver
     )
