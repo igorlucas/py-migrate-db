@@ -10,25 +10,26 @@ from sqlalchemy import create_engine, text
 logging.basicConfig(level=logging.DEBUG)
 
 class Migrate:
-    def __init__(self, command, database_url, rollback=None):
+    def __init__(self, command, database_url, migration_name=None):
         self.command = command
         self.base_folder = 'migrations'
         self.files = [file.split("/")[-1] for file in glob(f"./{self.base_folder}/*")]
         self.files.sort()
         self.sql_engine=create_engine(database_url)
+        self.migration_name = migration_name
 
-        self.init_migration()
+        self.init_migration_table()
 
         if self.command == 'execute':
             self.execute_migration()
         if self.command == 'rollback':
-            if rollback == None:
+            if migration_name == None:
                 logging.error('missing rollback arg')
                 return
-            self.migration_file = rollback
+            
             self.rollback_migration()
 
-    def init_migration(self):
+    def init_migration_table(self):
         logging.info("EXECUTING MIGRATION INITIALIZER")
         with self.sql_engine.connect() as conn:
             conn.execute(text("""
@@ -79,8 +80,8 @@ class Migrate:
             logging.info("\nALL MIGRATIONS APPLIED SUCCESSFULLY")
 
     def rollback_migration(self):
-        logging.info(f"PREPARING TO ROLLBACK MIGRATION {self.migration_file}")
-        with self.sql_engine.connect() as conn, open(f"{self.base_folder}/{self.migration_file}.sql", "r") as f:
+        logging.info(f"PREPARING TO ROLLBACK MIGRATION {self.migration_name}")
+        with self.sql_engine.connect() as conn, open(f"{self.base_folder}/{self.migration_name}.sql", "r") as f:
             archive = f.read()
             down = archive
             if "=====DOWN" in archive:
@@ -94,7 +95,7 @@ class Migrate:
                 (name, app)
                 VALUES (:name, :app)
             """),
-                name=f"{self.migration_file}.sql",
+                name=f"{self.migration_name}.sql",
                 app="app_rollback"
             )
         logging.info("ROLLBACK EXECUTED SUCCESSFULLY")
@@ -105,6 +106,7 @@ def main():
     parser.add_argument('command', help="command to execute inside dbms")
     parser.add_argument('--driver', help="SQL Driver to use")
     parser.add_argument('--dbstring', help="Add dbstring to connection if you didn't set DATABASE_MIGRATION_URL environment var")
+    parser.add_argument('--migration_name', help="Inform migration name to create or rollback sql migration file")
     args = parser.parse_args()
 
     load_dotenv()
@@ -115,5 +117,6 @@ def main():
 
     Migrate(
         command=args.command,
-        database_url=f"postgresql+psycopg2://{os.getenv('DATABASE_MIGRATION_URL') if 'DATABASE_MIGRATION_URL' in os.environ else args.dbstring}"
+        database_url=f"postgresql+psycopg2://{os.getenv('DATABASE_MIGRATION_URL') if 'DATABASE_MIGRATION_URL' in os.environ else args.dbstring}",
+        migration_name=args.migration_name
     )
