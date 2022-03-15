@@ -6,7 +6,7 @@ with open("README.md", "r") as readme:
 setup(
     name= "pymigratedb",
     packages=find_packages(),
-    version="1.1.0",
+    version="1.2.0",
     license="Apache License",
     description="This is a package to help you to migrate your database. It will be useful when you work on frameworks or programming languages that don't have a built-in tool to do it or it's little hard to setup.",
     long_description=long_description,
