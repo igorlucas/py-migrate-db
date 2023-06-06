@@ -17,5 +17,10 @@ pgsql = """
         app varchar NOT NULL,
         applied_at timestamptz(0) NOT NULL DEFAULT now(),
         CONSTRAINT migrations_pk PRIMARY KEY (id)
-    )
+    );
+
+    CREATE TABLE IF NOT EXISTS health (
+        sync timestamptz NOT NULL,
+        CONSTRAINT sync_pk PRIMARY KEY (sync)
+    );
 """
